@@ -84,6 +84,13 @@ class SessionManager:
         """获取已有 Session"""
         return self._sessions.get(session_id)
 
+    async def get_session_by_story_id(self, story_id: str) -> Optional[Session]:
+        """通过 story_id 查找 Session"""
+        for session in self._sessions.values():
+            if session.story_id == story_id:
+                return session
+        return None
+
     async def update_status(
         self,
         session_id: str,

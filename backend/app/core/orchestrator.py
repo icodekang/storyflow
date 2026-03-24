@@ -73,8 +73,14 @@ class PipelineOrchestrator:
                     "agent": agent.name,
                     "output": output,
                 })
-                # 骨架阶段：跳过实际等待，直接继续
-                # 实际实现通过 Redis PubSub 等待前端干预指令
+                # 人工干预：等待 Redis 中的干预指令（最多30分钟）
+                intervention = await self._wait_for_intervention(story_id, agent.name)
+                if intervention["action"] == "regenerate":
+                    context.human_feedback = intervention.get("feedback", "")
+                    output = await agent.execute(context)
+                elif intervention["action"] == "skip":
+                    output = {}
+                # confirm 什么都不做，直接继续
                 self.session.status = SessionStatus.RUNNING
 
             current_input = output
@@ -84,3 +90,28 @@ class PipelineOrchestrator:
             await ws.send_json({"type": "story_complete", "final_output": current_input})
 
         return current_input
+
+    async def _wait_for_intervention(self, story_id: str, agent_name: str) -> dict:
+        """阻塞等待前端干预指令（Redis GET + 超时轮询）"""
+        import asyncio
+        key = f"intervention:{story_id}:{agent_name}"
+        try:
+            import redis.asyncio as redis
+            import json
+            from app.core.config import settings
+            r = redis.from_url(settings.redis_url)
+            timeout = settings.INTERVENTION_TIMEOUT_SEC
+            interval = 2
+            elapsed = 0
+            while elapsed < timeout:
+                val = await r.get(key)
+                if val:
+                    await r.delete(key)
+                    await r.aclose()
+                    return json.loads(val)
+                await asyncio.sleep(interval)
+                elapsed += interval
+            await r.aclose()
+        except Exception:
+            pass
+        return {"action": "confirm", "feedback": ""}

@@ -39,8 +39,8 @@ export const api = {
   createStory: (storyText: string, mode: 'auto' | 'human', title?: string) =>
     post<CreateStoryResponse>('/stories', { story_text: storyText, mode, title }),
 
-  startGenerate: (storyId: string, storyText: string, mode: 'auto' | 'human') =>
-    post<StartGenerateResponse>(`/stories/${storyId}/generate`, { story_text: storyText, mode }),
+  startGenerate: (storyId: string, storyText: string, mode: 'auto' | 'human', agentLLMConfig?: Record<string, {provider: string; model: string}>) =>
+    post<StartGenerateResponse>(`/stories/${storyId}/generate`, { story_text: storyText, mode, agent_llm_config: agentLLMConfig }),
 
   getStory: (storyId: string) =>
     get<{ story_id: string; session_id: string; status: string; current_agent?: string; mode: string }>(`/stories/${storyId}`),

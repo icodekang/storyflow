@@ -11,6 +11,39 @@ const AGENT_NAMES = [
   'QCReview',
 ]
 
+export const LLM_PROVIDERS = {
+  openai: {
+    label: 'OpenAI',
+    models: [
+      { value: 'gpt-4o', label: 'GPT-4o（最强）' },
+      { value: 'gpt-4o-mini', label: 'GPT-4o mini（便宜快速）' },
+      { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    ],
+  },
+  anthropic: {
+    label: 'Anthropic',
+    models: [
+      { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet（最推荐）' },
+      { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+      { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku（最快）' },
+    ],
+  },
+}
+
+export type LLMConfig = { provider: 'openai' | 'anthropic'; model: string }
+
+export type AgentLLMConfig = Record<string, LLMConfig>
+
+const DEFAULT_AGENT_CONFIG: AgentLLMConfig = {
+  ScriptAnalysis:   { provider: 'openai', model: 'gpt-4o' },
+  PlotDeconstruct:  { provider: 'openai', model: 'gpt-4o' },
+  ScenePlanning:    { provider: 'openai', model: 'gpt-4o-mini' },
+  CharacterDesign:  { provider: 'openai', model: 'gpt-4o' },
+  VisualGen:       { provider: 'openai', model: 'gpt-4o' },
+  VideoAssembly:   { provider: 'openai', model: 'gpt-4o' },
+  QCReview:        { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
+}
+
 interface StoryState {
   // Story 数据
   storyText: string
@@ -23,7 +56,11 @@ interface StoryState {
   // Agent 状态
   agents: AgentState[]
 
+  // Agent LLM 配置
+  agentLLMConfig: AgentLLMConfig
+
   // UI 状态
+  settingsOpen: boolean
   interventionDrawerOpen: boolean
   interventionAgent: string | null
 
@@ -34,7 +71,11 @@ interface StoryState {
   setMode: (mode: Mode) => void
   setStatus: (status: StoryState['status']) => void
   setFinalOutput: (output: AgentOutput | null) => void
+  setAgentLLMConfig: (agent: string, config: LLMConfig) => void
+  resetAgentLLMConfig: () => void
   handleWSMessage: (msg: WSMessage) => void
+  openSettings: () => void
+  closeSettings: () => void
   openInterventionDrawer: (agentName: string) => void
   closeInterventionDrawer: () => void
   reset: () => void
@@ -53,6 +94,8 @@ export const useStore = create<StoryState>((set) => ({
   status: 'idle',
   finalOutput: null,
   agents: initialAgents,
+  agentLLMConfig: { ...DEFAULT_AGENT_CONFIG },
+  settingsOpen: false,
   interventionDrawerOpen: false,
   interventionAgent: null,
 
@@ -62,6 +105,14 @@ export const useStore = create<StoryState>((set) => ({
   setMode: (mode) => set({ mode }),
   setStatus: (status) => set({ status }),
   setFinalOutput: (output) => set({ finalOutput: output }),
+
+  setAgentLLMConfig: (agent, config) =>
+    set((state) => ({
+      agentLLMConfig: { ...state.agentLLMConfig, [agent]: config },
+    })),
+
+  resetAgentLLMConfig: () =>
+    set({ agentLLMConfig: { ...DEFAULT_AGENT_CONFIG } }),
 
   handleWSMessage: (msg) =>
     set((state) => {
@@ -110,6 +161,9 @@ export const useStore = create<StoryState>((set) => ({
       }
     }),
 
+  openSettings: () => set({ settingsOpen: true }),
+  closeSettings: () => set({ settingsOpen: false }),
+
   openInterventionDrawer: (agentName) =>
     set({ interventionDrawerOpen: true, interventionAgent: agentName }),
   closeInterventionDrawer: () =>
@@ -123,6 +177,8 @@ export const useStore = create<StoryState>((set) => ({
       status: 'idle',
       finalOutput: null,
       agents: initialAgents,
+      agentLLMConfig: { ...DEFAULT_AGENT_CONFIG },
+      settingsOpen: false,
       interventionDrawerOpen: false,
       interventionAgent: null,
     }),

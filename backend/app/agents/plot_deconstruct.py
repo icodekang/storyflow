@@ -3,7 +3,8 @@ Agent 2: PlotDeconstruct（情节拆解）
 """
 from datetime import datetime
 
-from app.agents.base import AgentContext, BaseAgent
+from app.agents.base import AgentContext, BaseAgent, MockLLMMixin
+from app.services.llm import LLMConfig
 
 
 MOCK_OUTPUT = {
@@ -40,9 +41,10 @@ MOCK_OUTPUT = {
 }
 
 
-class PlotDeconstructAgent(BaseAgent):
+class PlotDeconstructAgent(MockLLMMixin, BaseAgent):
     name = "PlotDeconstruct"
     description = "将剧本拆解为三幕结构与关键情节点"
+    llm_config = LLMConfig(provider="openai", model="gpt-4o")
 
     def _get_search_query(self, input_data: dict) -> str:
         return input_data.get("story_summary", "")
@@ -50,9 +52,6 @@ class PlotDeconstructAgent(BaseAgent):
     def _build_prompt(self, context: AgentContext, memory_results: list[dict]) -> str:
         summary = context.input_data.get("story_summary", "")
         return f"将以下故事拆解为三幕结构：\n{summary}"
-
-    async def _call_llm(self, prompt: str, human_feedback: str | None) -> str:
-        return "{}"
 
     def _parse_output(self, raw_output: str) -> dict:
         return MOCK_OUTPUT

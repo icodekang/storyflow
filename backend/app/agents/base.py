@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from app.core.session import Session
 
-import httpx
+from app.services.llm import LLMConfig, llm_service, get_agent_llm_config
 
 
 @dataclass
@@ -28,9 +28,13 @@ class BaseAgent(ABC):
 
     name: str = "BaseAgent"
     description: str = ""
+    # 子类可覆写此类属性以指定自己的模型
+    llm_config: LLMConfig | None = None
 
     def __init__(self, session: "Session"):
         self.session = session
+        # 从配置服务获取该 Agent 的 LLM 配置（环境变量 > 类属性 llm_config > 全局默认）
+        self._effective_llm_config: LLMConfig = get_agent_llm_config(self.name, agent_cls=self.__class__)
 
     async def execute(self, context: AgentContext) -> dict:
         """
@@ -63,6 +67,17 @@ class BaseAgent(ABC):
 
         return parsed
 
+    async def _call_llm(self, prompt: str, human_feedback: str | None = None) -> str:
+        """
+        调用 LLM（使用该 Agent 自己的模型配置）
+        子类一般不需要覆写；若需特殊处理可覆盖此方法
+        """
+        return await llm_service.call(
+            prompt=prompt,
+            config=self._effective_llm_config,
+            human_feedback=human_feedback,
+        )
+
     @abstractmethod
     def _get_search_query(self, input_data: dict) -> str:
         """从输入数据中提取用于检索记忆的 query"""
@@ -74,18 +89,13 @@ class BaseAgent(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def _call_llm(self, prompt: str, human_feedback: str | None) -> str:
-        """调用 LLM，返回原始文本输出"""
-        raise NotImplementedError
-
-    @abstractmethod
     def _parse_output(self, raw_output: str) -> dict:
         """解析 LLM 输出为结构化 dict"""
         raise NotImplementedError
 
 
 class MockLLMMixin:
-    """Mock LLM Mixin——用于骨架阶段返回预设数据"""
+    """Mock LLM Mixin——骨架阶段返回预设数据，绕过真实 LLM"""
 
-    async def _call_llm(self, prompt: str, human_feedback: str | None) -> str:
+    async def _call_llm(self, prompt: str, human_feedback: str | None = None) -> str:
         return "{}"

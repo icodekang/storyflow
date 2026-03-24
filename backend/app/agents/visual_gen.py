@@ -3,7 +3,8 @@ Agent 5: VisualGen（视觉生成）
 """
 from datetime import datetime
 
-from app.agents.base import AgentContext, BaseAgent
+from app.agents.base import AgentContext, BaseAgent, MockLLMMixin
+from app.services.llm import LLMConfig
 
 
 MOCK_OUTPUT = {
@@ -23,26 +24,16 @@ MOCK_OUTPUT = {
                 "output_url": "",
                 "status": "pending",
             },
-            {
-                "asset_id": "asset_02",
-                "scene_id": "sc_02",
-                "character_id": None,
-                "asset_type": "image",
-                "prompt": "A mysterious letter sliding under a door, rainy night background, dramatic lighting",
-                "negative_prompt": "cartoon, anime, low quality",
-                "generation_params": {"model": "sdxl", "resolution": "1024x1024", "seed": 43},
-                "output_path": "data/storage/asset_02.png",
-                "output_url": "",
-                "status": "pending",
-            },
         ]
     },
 }
 
 
-class VisualGenAgent(BaseAgent):
+class VisualGenAgent(MockLLMMixin, BaseAgent):
     name = "VisualGen"
     description = "生成视觉素材（图像/视频片段）"
+    # 视觉生成用 GPT-4o（理解场景描述生成精准 prompt）
+    llm_config = LLMConfig(provider="openai", model="gpt-4o")
 
     def _get_search_query(self, input_data: dict) -> str:
         scenes = input_data.get("scenes", [])
@@ -50,9 +41,6 @@ class VisualGenAgent(BaseAgent):
 
     def _build_prompt(self, context: AgentContext, memory_results: list[dict]) -> str:
         return f"为以下场景生成视觉素材：\n{context.input_data}"
-
-    async def _call_llm(self, prompt: str, human_feedback: str | None) -> str:
-        return "{}"
 
     def _parse_output(self, raw_output: str) -> dict:
         return MOCK_OUTPUT

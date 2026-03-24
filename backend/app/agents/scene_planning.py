@@ -3,7 +3,8 @@ Agent 3: ScenePlanning（分镜规划）
 """
 from datetime import datetime
 
-from app.agents.base import AgentContext, BaseAgent
+from app.agents.base import AgentContext, BaseAgent, MockLLMMixin
+from app.services.llm import LLMConfig
 
 
 MOCK_OUTPUT = {
@@ -37,29 +38,18 @@ MOCK_OUTPUT = {
                 "transition": "dissolve",
                 "duration_sec": 5,
             },
-            {
-                "scene_id": "sc_03",
-                "scene_number": 3,
-                "act": 2,
-                "description": "主角走出家门，迈向未知",
-                "location": "室外",
-                "time_of_day": "morning",
-                "weather": "晴",
-                "emotion": "坚定",
-                "camera_angle": "wide",
-                "transition": "fade",
-                "duration_sec": 15,
-            },
         ],
-        "total_scenes": 3,
-        "estimated_total_duration": 30,
+        "total_scenes": 2,
+        "estimated_total_duration": 15,
     },
 }
 
 
-class ScenePlanningAgent(BaseAgent):
+class ScenePlanningAgent(MockLLMMixin, BaseAgent):
     name = "ScenePlanning"
     description = "规划视频分镜，输出场景列表"
+    # 分镜规划任务相对简单，用 GPT-4o-mini 节省成本
+    llm_config = LLMConfig(provider="openai", model="gpt-4o-mini")
 
     def _get_search_query(self, input_data: dict) -> str:
         acts = input_data.get("act_structure", {})
@@ -67,9 +57,6 @@ class ScenePlanningAgent(BaseAgent):
 
     def _build_prompt(self, context: AgentContext, memory_results: list[dict]) -> str:
         return f"根据以下结构规划分镜：\n{context.input_data}"
-
-    async def _call_llm(self, prompt: str, human_feedback: str | None) -> str:
-        return "{}"
 
     def _parse_output(self, raw_output: str) -> dict:
         return MOCK_OUTPUT

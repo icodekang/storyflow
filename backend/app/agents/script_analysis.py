@@ -3,7 +3,8 @@ Agent 1: ScriptAnalysis（剧本分析）
 """
 from datetime import datetime
 
-from app.agents.base import AgentContext, BaseAgent
+from app.agents.base import AgentContext, BaseAgent, MockLLMMixin
+from app.services.llm import LLMConfig
 
 
 MOCK_OUTPUT = {
@@ -23,9 +24,10 @@ MOCK_OUTPUT = {
 }
 
 
-class ScriptAnalysisAgent(BaseAgent):
+class ScriptAnalysisAgent(MockLLMMixin, BaseAgent):
     name = "ScriptAnalysis"
     description = "分析输入剧本，输出题材、基调、主题等元数据"
+    llm_config = LLMConfig(provider="openai", model="gpt-4o")
 
     def _get_search_query(self, input_data: dict) -> str:
         return input_data.get("story_text", "")
@@ -33,10 +35,6 @@ class ScriptAnalysisAgent(BaseAgent):
     def _build_prompt(self, context: AgentContext, memory_results: list[dict]) -> str:
         story = context.input_data.get("story_text", "")
         return f"分析以下故事文本，输出题材、基调、主题等：\n{story[:500]}"
-
-    async def _call_llm(self, prompt: str, human_feedback: str | None) -> str:
-        # 骨架阶段：返回空 JSON，后续 _parse_output 使用 mock
-        return "{}"
 
     def _parse_output(self, raw_output: str) -> dict:
         return MOCK_OUTPUT

@@ -50,11 +50,18 @@ class Settings(BaseSettings):
     CHROMA_COLLECTION: str = "storyflow_memory"
 
     # ── LLM ─────────────────────────────────────────────
+    # 全局默认（单个 Agent 未配置时使用）
     LLM_PROVIDER: str = "openai"  # openai | anthropic
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4o"
     ANTHROPIC_API_KEY: str | None = None
     ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
+
+    # ── Per-Agent LLM 配置 ──────────────────────────────
+    # 通过环境变量注入，格式：LLM_AGENT_{AgentName}='{"provider":"openai","model":"gpt-4o-mini"}'
+    # Agent 名称区分大小写，必须与 PIPELINE_AGENTS 中的类名一致
+    # 示例：LLM_AGENT_ScriptAnalysis='{"provider":"openai","model":"gpt-4o"}'
+    #       LLM_AGENT_QCReview='{"provider":"anthropic","model":"claude-3-5-sonnet-20241022"}'
 
     # ── Video / Storage ─────────────────────────────────
     VIDEO_GENERATOR_MODE: str = "ffmpeg"  # ffmpeg | runway | pika

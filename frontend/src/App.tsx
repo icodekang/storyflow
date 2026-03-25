@@ -4,6 +4,7 @@ import { useStore } from './store/useStore'
 import { useStoryStore } from './stores/storyStore'
 import { StoryInputCard } from './components/StoryInputCard'
 import { StatusBar } from './components/StatusBar'
+import { QueueStatusBar } from './components/QueueStatusBar'
 import { InterventionDrawer } from './components/InterventionDrawer'
 import { StoryList } from './components/StoryList/StoryList'
 import { SettingsModal } from './components/SettingsModal'
@@ -32,10 +33,16 @@ export default function App() {
 
         if (msg.type === 'agent_status' && msg.agent) {
           storyStore.updateStory(activeId, { status: 'running', currentAgent: msg.agent })
+        } else if (msg.type === 'job_queued') {
+          storyStore.updateStory(activeId, { status: 'queued', jobId: msg.job_id, queuePosition: msg.position })
+        } else if (msg.type === 'job_started') {
+          storyStore.updateStory(activeId, { status: 'running', jobId: msg.job_id })
         } else if (msg.type === 'story_complete') {
           storyStore.updateStory(activeId, { status: 'done', currentAgent: null })
         } else if (msg.type === 'story_error') {
           storyStore.updateStory(activeId, { status: 'error', currentAgent: null })
+        } else if (msg.type === 'job_error') {
+          storyStore.updateStory(activeId, { status: 'error' })
         }
       } catch {}
     }
@@ -57,8 +64,10 @@ export default function App() {
         storyText: store.storyText,
         title: store.storyText.slice(0, 30),
         mode: story.mode as 'auto' | 'human',
-        status: 'running' as const,
+        status: 'queued' as const,
         currentAgent: null,
+        jobId: null,
+        queuePosition: 0,
         createdAt: Date.now(),
       }
 
@@ -154,6 +163,9 @@ export default function App() {
         </div>
         <div className="mb-6">
           <StatusBar />
+        </div>
+        <div className="mb-6">
+          <QueueStatusBar />
         </div>
         <StoryList />
       </main>

@@ -50,7 +50,7 @@ interface StoryState {
   storyId: string
   sessionId: string
   mode: Mode
-  status: 'idle' | 'running' | 'paused' | 'done' | 'error'
+  status: 'idle' | 'queued' | 'running' | 'paused' | 'done' | 'error'
   finalOutput: AgentOutput | null
 
   // Agent 状态
@@ -153,6 +153,11 @@ export const useStore = create<StoryState>((set) => ({
           return {
             storyId: msg.story_id || state.storyId,
             status: 'running',
+          }
+        case 'job_queued':
+          return {
+            storyId: msg.story_id || state.storyId,
+            status: 'queued',
           }
         case 'session_state':
           return { status: msg.status as StoryState['status'] }

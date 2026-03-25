@@ -8,8 +8,7 @@ from typing import Literal
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.core.session import Session, session_manager, SessionStatus
-from app.core.orchestrator import PipelineOrchestrator
-from app.agents import PIPELINE_AGENTS
+from app.core.scheduler import scheduler
 
 
 class ConnectionManager:
@@ -43,27 +42,9 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-async def run_pipeline(story_id: str, story_text: str, mode: Literal["auto", "human"] = "auto") -> None:
-    """后台运行 pipeline，通过 WebSocket 推送进度"""
-    # 创建 session
-    session = await session_manager.create_session(story_id=story_id, mode=mode)
-    ws = manager.get_ws(story_id)
-
-    # 构建 orchestrator
-    orchestrator = PipelineOrchestrator(session=session, mode=mode)
-    orchestrator.register_agents(PIPELINE_AGENTS)
-
-    try:
-        initial_input = {"story_text": story_text}
-        await orchestrator.run(story_id, initial_input, ws=ws)
-    except Exception as e:
-        await session_manager.update_status(session.session_id, SessionStatus.ERROR)
-        await manager.send_json(story_id, {
-            "type": "story_error",
-            "error": str(e),
-        })
-    finally:
-        manager.disconnect(story_id)
+async def ws_send_wrapper(story_id: str, data: dict) -> None:
+    """WebSocket 推送的异步包装"""
+    await manager.send_json(story_id, data)
 
 
 async def websocket_handler(ws: WebSocket, story_id: str) -> None:
@@ -78,21 +59,30 @@ async def websocket_handler(ws: WebSocket, story_id: str) -> None:
             if msg_type == "ping":
                 await ws.send_json({"type": "pong"})
             elif msg_type == "start":
-                # 前端触发 story 生成（后台运行）
+                # 提交任务到调度器（排队等执行）
                 story_text = data.get("story_text", "")
                 mode = data.get("mode", "auto")
-                asyncio.create_task(run_pipeline(story_id, story_text, mode))
-                await ws.send_json({"type": "started", "story_id": story_id})
+                agent_llm_config = data.get("agent_llm_config")
+
+                job_id = await scheduler.submit(
+                    story_id=story_id,
+                    mode=mode,
+                    initial_input={"story_text": story_text},
+                    agent_llm_config=agent_llm_config,
+                    ws_send=lambda d: ws_send_wrapper(story_id, d),
+                )
+
+                await ws.send_json({"type": "started", "story_id": story_id, "job_id": job_id})
+
             elif msg_type == "intervene":
                 # 前端干预指令
                 agent_name = data.get("agent_name", "")
                 action = data.get("action", "confirm")
                 feedback = data.get("feedback", "")
-                # 写入 Redis，后续 orchestrator 读取
                 await _publish_intervention(story_id, agent_name, action, feedback)
                 await ws.send_json({"type": "intervention_received"})
+
             elif msg_type == "fetch_session":
-                # 前端拉取当前 session 状态
                 session = await session_manager.get_session_by_story_id(story_id)
                 if session:
                     await ws.send_json({
@@ -101,6 +91,14 @@ async def websocket_handler(ws: WebSocket, story_id: str) -> None:
                         "status": session.status.value,
                         "current_agent": session.current_agent,
                     })
+
+            elif msg_type == "cancel":
+                await scheduler.cancel_job(story_id)
+                await ws.send_json({"type": "cancelled", "story_id": story_id})
+
+            elif msg_type == "queue_status":
+                status = await scheduler.get_queue_status()
+                await ws.send_json({"type": "queue_status", **status})
 
     except WebSocketDisconnect:
         manager.disconnect(story_id)
@@ -113,9 +111,7 @@ async def _publish_intervention(story_id: str, agent_name: str, action: str, fee
         from app.core.config import settings
         r = redis.from_url(settings.redis_url)
         key = f"intervention:{story_id}:{agent_name}"
-        import json
         await r.set(key, json.dumps({"action": action, "feedback": feedback}), ex=3600)
         await r.aclose()
     except Exception:
-        # Redis 不可用时跳过（骨架阶段不影响）
         pass

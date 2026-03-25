@@ -10,13 +10,16 @@ export interface AgentOutput {
 }
 
 export interface WSMessage {
-  type: 'agent_status' | 'agent_output' | 'agent_waiting' | 'story_complete' | 'story_error' | 'pong' | 'started' | 'session_state' | 'intervention_received'
+  type: 'agent_status' | 'agent_output' | 'agent_waiting' | 'story_complete' | 'story_error' | 'pong' | 'started' | 'session_state' | 'intervention_received' | 'job_queued' | 'job_started' | 'job_error'
   agent?: string
   status?: string
   output?: AgentOutput
   final_output?: AgentOutput
   error?: string
   story_id?: string
+  job_id?: string
+  position?: number
+  queue_size?: number
 }
 
 export interface Story {

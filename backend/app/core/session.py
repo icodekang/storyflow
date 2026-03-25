@@ -73,12 +73,11 @@ class SessionManager:
         story_id: str,
         mode: Literal["auto", "human"] = "auto",
     ) -> Session:
-        """创建新 Session 并初始化 MemoryLayer"""
-        async with self._semaphore:
-            session = Session(story_id=story_id, mode=mode)
-            session.memory = MemoryLayer(session)
-            self._sessions[session.session_id] = session
-            return session
+        """创建新 Session 并初始化 MemoryLayer（立即返回，不占并发 slot）"""
+        session = Session(story_id=story_id, mode=mode)
+        session.memory = MemoryLayer(session)
+        self._sessions[session.session_id] = session
+        return session
 
     async def get_session(self, session_id: str) -> Optional[Session]:
         """获取已有 Session"""

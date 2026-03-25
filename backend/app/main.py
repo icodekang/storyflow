@@ -83,6 +83,13 @@ async def get_story_agents(story_id: str):
     return {"agents": history}
 
 
+@app.get("/api/queue")
+async def get_queue_status():
+    """获取当前任务队列状态"""
+    from app.core.scheduler import scheduler
+    return await scheduler.get_queue_status()
+
+
 @app.post("/api/stories/{story_id}/generate")
 async def start_story_generation(story_id: str, body: StoryCreate):
     """触发 story 生成 pipeline（异步，后台运行）"""
@@ -91,9 +98,8 @@ async def start_story_generation(story_id: str, body: StoryCreate):
         # 自动创建 session
         session = await session_manager.create_session(story_id=story_id, mode=body.mode)
 
-    # 在后台运行 pipeline
-    from app.api.websocket import run_pipeline
-    asyncio.create_task(run_pipeline(story_id, body.story_text, body.mode))
+    # 通过 Scheduler 提交任务（已通过 WebSocket submit，这里仅作 HTTP 兼容）
+    return {"status": "queued", "story_id": story_id, "session_id": session.session_id}
 
     return {"status": "started", "story_id": story_id, "session_id": session.session_id}
 
@@ -158,5 +164,7 @@ async def serve_storage(path: str):
 
 @app.on_event("startup")
 async def startup():
+    # 启动 Pipeline 调度器（启动 worker pool）
+    from app.core.scheduler import scheduler
+    scheduler.start()
     # TODO: 从 Redis 恢复未完成的 session
-    pass

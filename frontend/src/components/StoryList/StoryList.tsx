@@ -7,8 +7,9 @@ import { VideoPreview } from '../VideoPreview'
 
 const STATUS_BADGE = {
   idle: { label: '待生成', cls: 'bg-gray-100 text-gray-500' },
+  queued: { label: '排队中', cls: 'bg-yellow-50 text-yellow-600' },
   running: { label: '生成中', cls: 'bg-blue-50 text-blue-600 animate-pulse' },
-  paused: { label: '等待干预', cls: 'bg-yellow-50 text-yellow-600' },
+  paused: { label: '等待干预', cls: 'bg-orange-50 text-orange-600' },
   done: { label: '已完成', cls: 'bg-green-50 text-green-600' },
   error: { label: '失败', cls: 'bg-red-50 text-red-600' },
 }
@@ -74,6 +75,8 @@ export function StoryList() {
         mode: story.mode as 'auto' | 'human',
         status: 'idle',
         currentAgent: null,
+        jobId: null,
+        queuePosition: 0,
         createdAt: Date.now(),
       }
       addStory(newStory)

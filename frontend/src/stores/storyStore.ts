@@ -6,8 +6,10 @@ export interface Story {
   storyText: string
   title: string
   mode: 'auto' | 'human'
-  status: 'idle' | 'running' | 'paused' | 'done' | 'error'
+  status: 'idle' | 'queued' | 'running' | 'paused' | 'done' | 'error'
   currentAgent: string | null
+  jobId: string | null
+  queuePosition: number
   createdAt: number
 }
 

@@ -2,6 +2,7 @@ import { useStore } from '../store/useStore'
 
 const STATUS_TEXT = {
   idle: '⏸️ 等待开始',
+  queued: '⏳ 排队中',
   running: '⚙️ 生成中...',
   paused: '⏳ 等待人工干预',
   done: '✅ 生成完成',
@@ -19,6 +20,7 @@ export function StatusBar() {
           {status === 'done' && '✅'}
           {status === 'paused' && '⏳'}
           {status === 'error' && '❌'}
+          {status === 'queued' && '⏳'}
           {status === 'idle' && '⏸️'}
         </span>
         <span className="font-medium text-gray-800">{STATUS_TEXT[status]}</span>
@@ -26,6 +28,7 @@ export function StatusBar() {
 
       <div className="text-sm text-gray-500">
         {status === 'running' && 'AI Agent 正在工作中，请稍候...'}
+        {status === 'queued' && '正在排队等待执行，请稍候...'}
         {status === 'paused' && '请在右侧面板完成人工干预'}
         {status === 'done' && '视频已生成完毕'}
         {status === 'idle' && '输入故事文本，点击开始生成'}
